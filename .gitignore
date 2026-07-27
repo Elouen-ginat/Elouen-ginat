@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.Python
+
+# Packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Environments — uv.lock IS committed, .venv is not
+.venv/
+venv/
+.python-version.local
+
+# Tooling caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# Artifacts produced by examples/ and ad-hoc runs
+tokenizer.json
+*.tokenizer.json
+
+# Editors / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
