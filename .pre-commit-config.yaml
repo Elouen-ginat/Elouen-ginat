@@ -1,0 +1,52 @@
+default_install_hook_types: [pre-commit, pre-push]
+default_language_version:
+  python: python3.11
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-added-large-files
+        args: [--maxkb=512]
+      - id: check-merge-conflict
+      - id: check-toml
+      - id: check-yaml
+      - id: debug-statements
+      - id: end-of-file-fixer
+      - id: mixed-line-ending
+        args: [--fix=lf]
+      - id: trailing-whitespace
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.14.10
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+      - id: ruff-format
+
+  # Keeps uv.lock in step with pyproject.toml, so a stale lock never reaches CI.
+  - repo: https://github.com/astral-sh/uv-pre-commit
+    rev: 0.9.30
+    hooks:
+      - id: uv-lock
+
+  # Local so the type check sees the project's own dependency versions rather
+  # than a hook-managed environment that drifts from uv.lock.
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy
+        entry: uv run --frozen mypy
+        language: system
+        types: [python]
+        pass_filenames: false
+        require_serial: true
+
+      # Slow enough to be a nuisance per-commit; run it before the push instead.
+      - id: pytest
+        name: pytest
+        entry: uv run --frozen pytest -q
+        language: system
+        types: [python]
+        pass_filenames: false
+        stages: [pre-push]

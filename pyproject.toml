@@ -1,0 +1,163 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "occam-tokenizer"
+description = "Parameter-free unsupervised tokenization by Minimum Description Length"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Elouen Ginat", email = "elouenginat@gmail.com" }]
+keywords = [
+    "tokenizer",
+    "tokenization",
+    "subword",
+    "mdl",
+    "minimum-description-length",
+    "nlp",
+    "unsupervised",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Text Processing :: Linguistic",
+    "Typing :: Typed",
+]
+dependencies = ["numpy>=1.24", "scipy>=1.10"]
+dynamic = ["version"]
+
+[project.urls]
+Homepage = "https://github.com/Elouen-ginat/occam-tokenizer"
+Repository = "https://github.com/Elouen-ginat/occam-tokenizer"
+Issues = "https://github.com/Elouen-ginat/occam-tokenizer/issues"
+Changelog = "https://github.com/Elouen-ginat/occam-tokenizer/blob/main/CHANGELOG.md"
+
+# PEP 735 groups. Installed by `uv sync`, never shipped in the wheel.
+[dependency-groups]
+dev = [{ include-group = "test" }, { include-group = "lint" }]
+test = ["pytest>=8.0", "pytest-cov>=5.0"]
+lint = ["mypy>=1.11", "pre-commit>=3.8", "ruff>=0.6"]
+
+[tool.hatch.version]
+path = "src/occam_tokenizer/__about__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/occam_tokenizer"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/", "tests/", "examples/", "README.md", "LICENSE", "CHANGELOG.md"]
+
+# --------------------------------------------------------------------------- #
+#  uv
+# --------------------------------------------------------------------------- #
+
+[tool.uv]
+default-groups = ["dev"]
+
+# --------------------------------------------------------------------------- #
+#  Ruff
+# --------------------------------------------------------------------------- #
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # pyflakes
+    "I",      # isort
+    "B",      # flake8-bugbear
+    "C4",     # flake8-comprehensions
+    "UP",     # pyupgrade
+    "SIM",    # flake8-simplify
+    "RUF",    # ruff-specific
+    "NPY",    # numpy-specific
+    "PT",     # flake8-pytest-style
+    "PTH",    # flake8-use-pathlib
+    "RET",    # flake8-return
+    "TID",    # flake8-tidy-imports
+]
+ignore = [
+    # The numerical core pairs allocate-then-fill statements on one line so the
+    # two halves read as a single operation. Formatter and linter both leave it.
+    "E501",   # line length is enforced by the formatter, not the linter
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["E731"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["occam_tokenizer"]
+
+[tool.ruff.format]
+docstring-code-format = true
+
+# --------------------------------------------------------------------------- #
+#  mypy
+# --------------------------------------------------------------------------- #
+
+[tool.mypy]
+python_version = "3.10"
+files = ["src", "tests", "examples"]
+plugins = []
+# The numerical core is deliberately untyped inside: annotating every ndarray
+# helper adds noise without catching anything numpy does not already catch.
+# The public surface is typed, and `disallow_untyped_defs` can be switched on
+# per-module as internals get annotated.
+disallow_untyped_defs = false
+check_untyped_defs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_unreachable = true
+no_implicit_optional = true
+strict_equality = true
+pretty = true
+
+[[tool.mypy.overrides]]
+module = ["scipy.*"]
+ignore_missing_imports = true
+
+# --------------------------------------------------------------------------- #
+#  pytest
+# --------------------------------------------------------------------------- #
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--strict-config",
+    "--import-mode=importlib",
+]
+filterwarnings = ["error"]
+markers = ["slow: deselect with `-m 'not slow'`"]
+
+# --------------------------------------------------------------------------- #
+#  coverage
+# --------------------------------------------------------------------------- #
+
+[tool.coverage.run]
+source = ["src/occam_tokenizer"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "\\.\\.\\.",
+]
