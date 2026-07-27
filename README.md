@@ -9,12 +9,12 @@ merge lowers the description length of the corpus.
 from occam_tokenizer import OccamTokenizer
 
 tok = OccamTokenizer()
-tok.train(documents)                 # list[str] — that's the whole config
+tok.train(documents)  # list[str] — that's the whole config
 
 enc = tok.encode("hello world")
-enc.tokens                           # ['hello▁', 'wor', 'ld']
-enc.ids                              # [412, 88, 130]
-tok.decode(enc.ids)                  # 'hello world'
+enc.tokens  # ['hello▁', 'wor', 'ld']
+enc.ids  # [412, 88, 130]
+tok.decode(enc.ids)  # 'hello world'
 ```
 
 ## Install
@@ -29,29 +29,30 @@ Requires numpy and scipy.
 
 ```python
 tok = OccamTokenizer(
-    max_token_length=25,   # cap on token length in characters, or None
-    candidates=12,         # merges scored exactly per step
+    max_token_length=25,  # cap on token length in characters, or None
+    candidates=12,  # merges scored exactly per step
     lowercase=False,
 )
 
-tok.train(documents)                    # or train_from_iterator(iterable)
+tok.train(documents)  # or train_from_iterator(iterable)
 
-tok.encode(text)                        # -> Encoding(ids, tokens, attention_mask)
-tok.encode_batch(texts)                 # -> list[Encoding]
-tok(texts, padding=True, truncation=64) # -> {'input_ids', 'attention_mask'}
+tok.encode(text)  # -> Encoding(ids, tokens, attention_mask)
+tok.encode_batch(texts)  # -> list[Encoding]
+tok(texts, padding=True, truncation=64)  # -> {'input_ids', 'attention_mask'}
 
 tok.decode(ids)
 tok.decode_batch(list_of_ids)
 
 tok.vocab_size
-tok.get_vocab()                         # {token: id}
+tok.get_vocab()  # {token: id}
 tok.token_to_id(tok), tok.id_to_token(i)
-tok.training_stats                      # merges, compression, code length
+tok.training_stats  # merges, compression, code length
 
 tok.save("tokenizer.json")
 OccamTokenizer.from_file("tokenizer.json")
 
-tok.save_pretrained("dir/"); OccamTokenizer.from_pretrained("dir/")
+tok.save_pretrained("dir/")
+OccamTokenizer.from_pretrained("dir/")
 ```
 
 Run `python example.py` for a worked example.

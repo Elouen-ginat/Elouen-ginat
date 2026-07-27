@@ -48,23 +48,24 @@ from __future__ import annotations
 import heapq
 import json
 import math
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterable, Sequence
 
 import numpy as np
 from scipy.special import gammaln
 
 from .__about__ import __version__
 
-__all__ = ["OccamTokenizer", "Encoding", "SPACE"]
+__all__ = ["SPACE", "Encoding", "OccamTokenizer"]
 
-SPACE = "\u2581"          # visible word-boundary marker, SentencePiece style
+SPACE = "\u2581"  # visible word-boundary marker, SentencePiece style
 
 
 # --------------------------------------------------------------------------- #
 #  Encoding result
 # --------------------------------------------------------------------------- #
+
 
 @dataclass
 class Encoding:
@@ -88,6 +89,7 @@ class Encoding:
 # --------------------------------------------------------------------------- #
 #  Internals
 # --------------------------------------------------------------------------- #
+
 
 def _dedup(p: np.ndarray) -> np.ndarray:
     """
@@ -123,26 +125,32 @@ class _Cells:
     Memory is O(nnz) with nnz <= K, against O(D * V) for a dense table.
     """
 
-    __slots__ = ("D", "maxv", "_k", "_v", "_n", "tstart")
+    __slots__ = ("D", "_k", "_n", "_v", "maxv", "tstart")
 
     def __init__(self, seq: np.ndarray, dseq: np.ndarray, D: int, maxv: int):
         self.D, self.maxv = D, maxv
-        k, v = np.unique(seq.astype(np.int64) * D + dseq.astype(np.int64),
-                         return_counts=True)
+        k, v = np.unique(
+            seq.astype(np.int64) * D + dseq.astype(np.int64), return_counts=True
+        )
         self._n = len(k)
         cap = max(self._n * 2, 1024)
-        self._k = np.zeros(cap, dtype=np.int64); self._k[:self._n] = k
-        self._v = np.zeros(cap, dtype=np.int64); self._v[:self._n] = v
+        self._k = np.zeros(cap, dtype=np.int64)
+        self._k[: self._n] = k
+        self._v = np.zeros(cap, dtype=np.int64)
+        self._v[: self._n] = v
         self.tstart = np.searchsorted(k, np.arange(maxv + 1, dtype=np.int64) * D)
 
     @property
-    def keys(self): return self._k[:self._n]
+    def keys(self):
+        return self._k[: self._n]
 
     @property
-    def vals(self): return self._v[:self._n]
+    def vals(self):
+        return self._v[: self._n]
 
     @property
-    def nbytes(self): return self._k.nbytes + self._v.nbytes + self.tstart.nbytes
+    def nbytes(self):
+        return self._k.nbytes + self._v.nbytes + self.tstart.nbytes
 
     def lookup(self, doc: np.ndarray, tok: np.ndarray) -> np.ndarray:
         """n_dv for a batch of (document, token) pairs; 0 where absent."""
@@ -176,12 +184,12 @@ class _Cells:
             self._v[old:need] = md[nz]
             self._n = need
         self.tstart[c_id] = old
-        self.tstart[c_id + 1:] = self._n
+        self.tstart[c_id + 1 :] = self._n
 
     def grow(self, maxv: int) -> None:
         if maxv > self.maxv:
             t = np.full(maxv + 1, self._n, dtype=np.int64)
-            t[:len(self.tstart)] = self.tstart
+            t[: len(self.tstart)] = self.tstart
             self.tstart, self.maxv = t, maxv
 
     def compact(self) -> None:
@@ -191,16 +199,20 @@ class _Cells:
             return
         k, v = self.keys[live].copy(), self.vals[live].copy()
         cap = max(len(k) * 2, 1024)
-        self._k = np.zeros(cap, dtype=np.int64); self._k[:len(k)] = k
-        self._v = np.zeros(cap, dtype=np.int64); self._v[:len(k)] = v
+        self._k = np.zeros(cap, dtype=np.int64)
+        self._k[: len(k)] = k
+        self._v = np.zeros(cap, dtype=np.int64)
+        self._v[: len(k)] = v
         self._n = len(k)
         self.tstart = np.searchsorted(
-            k, np.arange(self.maxv + 1, dtype=np.int64) * self.D)
+            k, np.arange(self.maxv + 1, dtype=np.int64) * self.D
+        )
 
 
 # --------------------------------------------------------------------------- #
 #  Tokenizer
 # --------------------------------------------------------------------------- #
+
 
 class OccamTokenizer:
     """
@@ -245,13 +257,16 @@ class OccamTokenizer:
 
     def __repr__(self) -> str:
         n = self.vocab_size
-        return (f"OccamTokenizer(vocab_size={n}, merges={len(self.merges)}, "
-                f"trained={bool(self.merges) or n > 0})")
+        return (
+            f"OccamTokenizer(vocab_size={n}, merges={len(self.merges)}, "
+            f"trained={bool(self.merges) or n > 0})"
+        )
 
     # -- training ---------------------------------------------------------- #
 
-    def train(self, documents: Sequence[str], max_merges: int = 100_000,
-              verbose: bool = False) -> "OccamTokenizer":
+    def train(
+        self, documents: Sequence[str], max_merges: int = 100_000, verbose: bool = False
+    ) -> OccamTokenizer:
         """
         Learn a vocabulary from ``documents``.
 
@@ -280,7 +295,7 @@ class OccamTokenizer:
         del seq_parts, dseq_parts
 
         D = len(docs)
-        N = len(seq)                       # characters (one char per symbol now)
+        N = len(seq)  # characters (one char per symbol now)
         maxv = max(512, A * 4)
         tok_len = np.zeros(maxv, dtype=np.int32)
         tok_len[:A] = 1
@@ -292,9 +307,12 @@ class OccamTokenizer:
 
         Kdf = Kd.astype(np.float64)
         V = float((tok_cnt[:nid] > 0).sum())
-        cost = (math.log(N) + self._lvoc(nid, A)
-                + float((gammaln(Kdf + V) - gammaln(V)).sum())
-                - cells.sum_lgamma())
+        cost = (
+            math.log(N)
+            + self._lvoc(nid, A)
+            + float((gammaln(Kdf + V) - gammaln(V)).sum())
+            - cells.sum_lgamma()
+        )
         history = [cost]
 
         for step in range(max_merges):
@@ -302,8 +320,7 @@ class OccamTokenizer:
             if cand is None:
                 break
             a_ids, b_ids = cand
-            d = self._deltas(seq, dseq, cells, Kdf, D, a_ids, b_ids,
-                             nid, V, tok_cnt)
+            d = self._deltas(seq, dseq, cells, Kdf, D, a_ids, b_ids, nid, V, tok_cnt)
             i = int(np.argmin(d))
             if not np.isfinite(d[i]) or d[i] >= 0.0:
                 break
@@ -312,27 +329,33 @@ class OccamTokenizer:
             c_id = nid
             if c_id >= maxv:
                 maxv *= 2
-                tok_len = np.resize(tok_len, maxv); tok_len[c_id:] = 0
-                tok_cnt = np.resize(tok_cnt, maxv); tok_cnt[c_id:] = 0
+                tok_len = np.resize(tok_len, maxv)
+                tok_len[c_id:] = 0
+                tok_cnt = np.resize(tok_cnt, maxv)
+                tok_cnt[c_id:] = 0
                 cells.grow(maxv)
             id2tok.append(id2tok[a] + id2tok[b])
             tok_len[c_id] = tok_len[a] + tok_len[b]
             nid += 1
 
             seq, dseq, md = self._merge(seq, dseq, a, b, c_id, D)
-            cells.sub_column(a, md); cells.sub_column(b, md)
-            cells.add_column(c_id, md); cells.compact()
+            cells.sub_column(a, md)
+            cells.sub_column(b, md)
+            cells.add_column(c_id, md)
+            cells.compact()
             n = int(md.sum())
-            tok_cnt[c_id] = n; tok_cnt[a] -= n; tok_cnt[b] -= n
-            Kd -= md; Kdf = Kd.astype(np.float64)
+            tok_cnt[c_id] = n
+            tok_cnt[a] -= n
+            tok_cnt[b] -= n
+            Kd -= md
+            Kdf = Kd.astype(np.float64)
             V = float((tok_cnt[:nid] > 0).sum())
 
             self.merges.append((id2tok[a], id2tok[b]))
             cost += float(d[i])
             history.append(cost)
             if verbose and step % 25 == 0:
-                print(f"  merge {step:>4}  {id2tok[a]+id2tok[b]!r:<24} "
-                      f"C={cost:.1f}")
+                print(f"  merge {step:>4}  {id2tok[a] + id2tok[b]!r:<24} C={cost:.1f}")
 
         self._build_vocab()
         self.training_stats = {
@@ -349,7 +372,7 @@ class OccamTokenizer:
         }
         return self
 
-    def train_from_iterator(self, iterator: Iterable[str], **kw) -> "OccamTokenizer":
+    def train_from_iterator(self, iterator: Iterable[str], **kw) -> OccamTokenizer:
         """Train from any iterable of strings."""
         return self.train(list(iterator), **kw)
 
@@ -379,15 +402,23 @@ class OccamTokenizer:
 
         na = tok_cnt[a_ids].astype(np.float64)
         nb = tok_cnt[b_ids].astype(np.float64)
-        K = float(tok_cnt.sum()); V = float((tok_cnt > 0).sum())
+        K = float(tok_cnt.sum())
+        V = float((tok_cnt > 0).sum())
         na2, nb2, K2 = na - cab, nb - cab, K - cab
         V2 = V + 1.0 - (na2 == 0) - (nb2 == 0)
-        d = (gammaln(K2 + V2) - gammaln(V2) - gammaln(K2 + 1)
-             - (gammaln(K + V) - gammaln(V) - gammaln(K + 1))
-             + gammaln(K2 + 1) - gammaln(K + 1)
-             + gammaln(na + 1) - gammaln(na2 + 1)
-             + gammaln(nb + 1) - gammaln(nb2 + 1)
-             - gammaln(cab + 1))
+        d = (
+            gammaln(K2 + V2)
+            - gammaln(V2)
+            - gammaln(K2 + 1)
+            - (gammaln(K + V) - gammaln(V) - gammaln(K + 1))
+            + gammaln(K2 + 1)
+            - gammaln(K + 1)
+            + gammaln(na + 1)
+            - gammaln(na2 + 1)
+            + gammaln(nb + 1)
+            - gammaln(nb2 + 1)
+            - gammaln(cab + 1)
+        )
         m = min(self.candidates, len(d))
         idx = np.argpartition(d, m - 1)[:m]
         return a_ids[idx], b_ids[idx]
@@ -405,14 +436,15 @@ class OccamTokenizer:
         if len(diff):
             key = np.where(same, s0.astype(np.int64) * nid + s1, -1)
             ck = a_ids[diff].astype(np.int64) * nid + b_ids[diff]
-            order = np.argsort(ck); cks = ck[order]
+            order = np.argsort(ck)
+            cks = ck[order]
             pos = np.minimum(np.searchsorted(cks, key), len(cks) - 1)
             hit = cks[pos] == key
             if hit.any():
                 slots.append(diff[order[pos[hit]]])
                 docs.append(dseq[:-1][hit])
 
-        for j in np.where(eq)[0]:                 # self-merges need de-overlap
+        for j in np.where(eq)[0]:  # self-merges need de-overlap
             p = _dedup(np.where(same & (s0 == a_ids[j]) & (s1 == a_ids[j]))[0])
             if len(p):
                 slots.append(np.full(len(p), j, dtype=np.int64))
@@ -439,8 +471,7 @@ class OccamTokenizer:
         """
         M = len(a_ids)
         cand, doc, cnt = self._pair_cells(seq, dseq, a_ids, b_ids, nid, D)
-        tot = (np.bincount(cand, weights=cnt, minlength=M) if len(cand)
-               else np.zeros(M))
+        tot = np.bincount(cand, weights=cnt, minlength=M) if len(cand) else np.zeros(M)
 
         ca = tok_cnt[a_ids].astype(np.float64)
         cb = tok_cnt[b_ids].astype(np.float64)
@@ -457,8 +488,8 @@ class OccamTokenizer:
         if len(cand):
             vp, kd = Vp[cand], Kdf[doc]
             out += np.bincount(
-                cand, weights=gammaln(kd - cnt + vp) - gammaln(kd + vp),
-                minlength=M)
+                cand, weights=gammaln(kd - cnt + vp) - gammaln(kd + vp), minlength=M
+            )
             e = eq[cand]
             na = cells.lookup(doc, a_ids[cand])
             nb = cells.lookup(doc, b_ids[cand])
@@ -480,8 +511,10 @@ class OccamTokenizer:
         if len(p) == 0:
             return seq, dseq, np.zeros(D, dtype=np.int64)
         md = np.bincount(dseq[p], minlength=D).astype(np.int64)
-        mask = np.ones(len(seq), dtype=bool); mask[p + 1] = False
-        s = seq.copy(); s[p] = np.int32(c)
+        mask = np.ones(len(seq), dtype=bool)
+        mask[p + 1] = False
+        s = seq.copy()
+        s[p] = np.int32(c)
         return s[mask], dseq[mask], md
 
     # -- vocabulary --------------------------------------------------------- #
@@ -590,7 +623,8 @@ class OccamTokenizer:
             i = self._vocab.get(t)
             if i is None:
                 i, t = unk, self.unk_token
-            ids.append(i); out.append(t)
+            ids.append(i)
+            out.append(t)
         return Encoding(ids=ids, tokens=out)
 
     def encode_batch(self, texts: Sequence[str]) -> list[Encoding]:
@@ -609,8 +643,12 @@ class OccamTokenizer:
     def decode_batch(self, batch: Sequence[Sequence[int]], **kw) -> list[str]:
         return [self.decode(x, **kw) for x in batch]
 
-    def __call__(self, texts: str | Sequence[str], padding: bool = False,
-                 truncation: int | None = None) -> dict:
+    def __call__(
+        self,
+        texts: str | Sequence[str],
+        padding: bool = False,
+        truncation: int | None = None,
+    ) -> dict:
         """
         Encode for model input.
 
@@ -618,7 +656,9 @@ class OccamTokenizer:
         unless a single string was passed.
         """
         single = isinstance(texts, str)
-        encs = [self.encode(texts)] if single else self.encode_batch(texts)
+        encs = (
+            [self.encode(texts)] if isinstance(texts, str) else self.encode_batch(texts)
+        )
         ids = [e.ids for e in encs]
         if truncation:
             ids = [x[:truncation] for x in ids]
@@ -636,23 +676,30 @@ class OccamTokenizer:
 
     def save(self, path: str | Path) -> None:
         """Write the tokenizer to a JSON file."""
-        Path(path).write_text(json.dumps({
-            "version": __version__,
-            "config": {
-                "max_token_length": self.max_token_length,
-                "candidates": self.candidates,
-                "unk_token": self.unk_token,
-                "pad_token": self.pad_token,
-                "lowercase": self.lowercase,
-            },
-            "alphabet": self.alphabet,
-            "merges": [list(m) for m in self.merges],
-            "vocab": self._ids,
-            "training_stats": self.training_stats,
-        }, ensure_ascii=False, indent=1), encoding="utf-8")
+        Path(path).write_text(
+            json.dumps(
+                {
+                    "version": __version__,
+                    "config": {
+                        "max_token_length": self.max_token_length,
+                        "candidates": self.candidates,
+                        "unk_token": self.unk_token,
+                        "pad_token": self.pad_token,
+                        "lowercase": self.lowercase,
+                    },
+                    "alphabet": self.alphabet,
+                    "merges": [list(m) for m in self.merges],
+                    "vocab": self._ids,
+                    "training_stats": self.training_stats,
+                },
+                ensure_ascii=False,
+                indent=1,
+            ),
+            encoding="utf-8",
+        )
 
     @classmethod
-    def from_file(cls, path: str | Path) -> "OccamTokenizer":
+    def from_file(cls, path: str | Path) -> OccamTokenizer:
         """Load a tokenizer written by :meth:`save`."""
         d = json.loads(Path(path).read_text(encoding="utf-8"))
         tok = cls(**d["config"])
@@ -665,9 +712,10 @@ class OccamTokenizer:
         return tok
 
     def save_pretrained(self, directory: str | Path) -> None:
-        p = Path(directory); p.mkdir(parents=True, exist_ok=True)
+        p = Path(directory)
+        p.mkdir(parents=True, exist_ok=True)
         self.save(p / "tokenizer.json")
 
     @classmethod
-    def from_pretrained(cls, directory: str | Path) -> "OccamTokenizer":
+    def from_pretrained(cls, directory: str | Path) -> OccamTokenizer:
         return cls.from_file(Path(directory) / "tokenizer.json")

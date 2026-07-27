@@ -11,24 +11,56 @@ genuinely do recur corpus-wide and the tokenizer is right to absorb them.
 Real text has Zipfian diversity and produces morpheme-like tokens instead;
 max_token_length is capped at 12 here to keep the demo output readable.
 """
+
 import random
 
 from occam_tokenizer import OccamTokenizer
 
 random.seed(0)
 SUBJ = ["the cat", "the dog", "a bird", "the child", "my neighbour", "the runner"]
-VERB = ["walked", "walking", "walks", "ran", "running", "runs",
-        "jumped", "jumping", "jumps", "opened", "opening", "opens"]
+VERB = [
+    "walked",
+    "walking",
+    "walks",
+    "ran",
+    "running",
+    "runs",
+    "jumped",
+    "jumping",
+    "jumps",
+    "opened",
+    "opening",
+    "opens",
+]
 ADV = ["quickly", "slowly", "carefully", "quietly", "suddenly", "gladly"]
-OBJ = ["the wooden gate", "a stone wall", "the open door", "the tall window",
-       "a narrow path", "the small box"]
-ABST = ["nationalization", "globalization", "modernization", "privatization",
-        "happiness", "kindness", "darkness", "readability", "teachability"]
+OBJ = [
+    "the wooden gate",
+    "a stone wall",
+    "the open door",
+    "the tall window",
+    "a narrow path",
+    "the small box",
+]
+ABST = [
+    "nationalization",
+    "globalization",
+    "modernization",
+    "privatization",
+    "happiness",
+    "kindness",
+    "darkness",
+    "readability",
+    "teachability",
+]
 
-docs = [f"{random.choice(SUBJ)} {random.choice(VERB)} {random.choice(ADV)} "
-        f"past {random.choice(OBJ)}" for _ in range(300)]
-docs += [f"{random.choice(ABST)} and {random.choice(ABST)} are different"
-         for _ in range(150)]
+docs = [
+    f"{random.choice(SUBJ)} {random.choice(VERB)} {random.choice(ADV)} "
+    f"past {random.choice(OBJ)}"
+    for _ in range(300)
+]
+docs += [
+    f"{random.choice(ABST)} and {random.choice(ABST)} are different" for _ in range(150)
+]
 
 tok = OccamTokenizer(max_token_length=12, lowercase=True)
 tok.train(docs)
@@ -54,5 +86,7 @@ print(" ", tok(["the dog runs", "kindness"], padding=True))
 
 tok.save("tokenizer.json")
 reloaded = OccamTokenizer.from_file("tokenizer.json")
-print("\nreload identical:",
-      reloaded.encode("the cat walking").ids == tok.encode("the cat walking").ids)
+print(
+    "\nreload identical:",
+    reloaded.encode("the cat walking").ids == tok.encode("the cat walking").ids,
+)

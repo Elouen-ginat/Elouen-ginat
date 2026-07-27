@@ -90,9 +90,9 @@ select = [
     "TID",    # flake8-tidy-imports
 ]
 ignore = [
-    # The numerical core pairs allocate-then-fill statements on one line so the
-    # two halves read as a single operation. Formatter and linter both leave it.
-    "E501",   # line length is enforced by the formatter, not the linter
+    # The formatter owns line length; the linter flagging it too only produces
+    # warnings about lines the formatter has already decided it cannot split.
+    "E501",
 ]
 
 [tool.ruff.lint.per-file-ignores]
