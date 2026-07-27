@@ -1,61 +1,66 @@
 # occam-tokenizer
 
+[![CI](https://github.com/Elouen-ginat/occam-tokenizer/actions/workflows/ci.yml/badge.svg)](https://github.com/Elouen-ginat/occam-tokenizer/actions/workflows/ci.yml)
+[![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+
 Parameter-free unsupervised tokenization by Minimum Description Length.
 
 **There is no vocabulary size to choose.** Merging stops when no candidate
-merge lowers the description length of the corpus.
+merge lowers the description length of the corpus. MDL is Occam's razor made
+quantitative, and "the shortest description wins" is the whole stopping
+rule — hence the name.
 
 ```python
 from occam_tokenizer import OccamTokenizer
 
 tok = OccamTokenizer()
-tok.train(documents)  # list[str] — that's the whole config
+tok.train(documents)                 # list[str] — that's the whole config
 
 enc = tok.encode("hello world")
-enc.tokens  # ['hello▁', 'wor', 'ld']
-enc.ids  # [412, 88, 130]
-tok.decode(enc.ids)  # 'hello world'
+enc.tokens                           # ['hello▁', 'wor', 'ld']
+enc.ids                              # [412, 88, 130]
+tok.decode(enc.ids)                  # 'hello world'
 ```
 
 ## Install
 
 ```bash
-pip install -e .
+uv add occam-tokenizer               # or: pip install occam-tokenizer
 ```
 
-Requires numpy and scipy.
+Python 3.10+, numpy and scipy.
 
 ## API
 
 ```python
 tok = OccamTokenizer(
-    max_token_length=25,  # cap on token length in characters, or None
-    candidates=12,  # merges scored exactly per step
+    max_token_length=25,   # cap on token length in characters, or None
+    candidates=12,         # merges scored exactly per step
     lowercase=False,
 )
 
-tok.train(documents)  # or train_from_iterator(iterable)
+tok.train(documents)                    # or train_from_iterator(iterable)
 
-tok.encode(text)  # -> Encoding(ids, tokens, attention_mask)
-tok.encode_batch(texts)  # -> list[Encoding]
-tok(texts, padding=True, truncation=64)  # -> {'input_ids', 'attention_mask'}
+tok.encode(text)                        # -> Encoding(ids, tokens, attention_mask)
+tok.encode_batch(texts)                 # -> list[Encoding]
+tok(texts, padding=True, truncation=64) # -> {'input_ids', 'attention_mask'}
 
 tok.decode(ids)
 tok.decode_batch(list_of_ids)
 
 tok.vocab_size
-tok.get_vocab()  # {token: id}
-tok.token_to_id(tok), tok.id_to_token(i)
-tok.training_stats  # merges, compression, code length
+tok.get_vocab()                         # {token: id}
+tok.token_to_id(token), tok.id_to_token(i)
+tok.training_stats                      # merges, compression, code length
 
 tok.save("tokenizer.json")
 OccamTokenizer.from_file("tokenizer.json")
 
-tok.save_pretrained("dir/")
-OccamTokenizer.from_pretrained("dir/")
+tok.save_pretrained("dir/"); OccamTokenizer.from_pretrained("dir/")
 ```
 
-Run `python example.py` for a worked example.
+Run `make example` for a worked example.
 
 ## How it works
 
@@ -131,19 +136,27 @@ documents get shorter and closes entirely around 640 characters per document.
   gone from memory.
 - Single-threaded.
 
+## Development
+
+Managed with [uv](https://docs.astral.sh/uv/). The lockfile is committed, so
+every environment resolves identically.
+
+```bash
+make setup                           # uv sync + install the git hooks
+make check                           # lint + type + test, exactly what CI runs
+```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow.
+
 ## Reference
 
 Boullé, Clérot & Hue (2016), *Revisiting enumerative two-part crude MDL for
-Bernoulli and multinomial distributions*, [arXiv:1608.05522](https://arxiv.org/abs/1608.05522).
+Bernoulli and multinomial distributions*,
+[arXiv:1608.05522](https://arxiv.org/abs/1608.05522).
 
-The MODL framework underlies [Khiops](https://khiops.org).
-
-## Tests
-
-```bash
-pip install -e ".[dev]" && pytest -q
-```
+The MODL framework this criterion comes from underlies
+[Khiops](https://khiops.org).
 
 ## License
 
-Not yet chosen — see repository owner.
+[MIT](LICENSE)

@@ -103,6 +103,10 @@ known-first-party = ["occam_tokenizer"]
 
 [tool.ruff.format]
 docstring-code-format = true
+# The README's API reference aligns trailing comments into a column to make the
+# surface scannable. The formatter collapses that to a single space, so keep it
+# on source files and let prose be prose.
+exclude = ["*.md"]
 
 # --------------------------------------------------------------------------- #
 #  mypy
